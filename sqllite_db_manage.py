@@ -81,9 +81,10 @@ def drop_tables():
   return
 
 
-def insert_data(page_id, pickled_data, log_name):
+def insert_data(page_id, pickled_data, log_name, run_date):
   cursor.execute(
-      '''insert into Books_list(id, pickled_data, data_file_name) values(?, ?, ?)''', (page_id, pickled_data, log_name))
+      '''insert into book_list(id, pickled_data, data_file_name, job_run_date) values(?, ?, ?, ?)''', 
+      (page_id, pickled_data, log_name, run_date))
   db.commit()
 
   return
@@ -93,7 +94,8 @@ def initialize_db():
   
   try:
     drop_tables()
-  except:
+  except Exception as err:
+    logging.warning(f'Error DB initiailization: {err}, defaulting to creating new tables')
     pass
   finally:
     create_tables()
@@ -114,6 +116,8 @@ def test_dbm():
   page_num = 9999
   TODAY = datetime.datetime.today()
 
+
+  run_date = f'{TODAY.year}-{TODAY.month}-{TODAY.day}'
   TIMESTAMP = f'{TODAY.month}-{TODAY.day}-{TODAY.year}-{TODAY.hour}-{TODAY.minute}'
   output_file = f'roy_mathew_books_{page_num}_of_50_{TIMESTAMP}'
 
@@ -128,7 +132,7 @@ def test_dbm():
   sel_query = 'select * from book_list'
 
   try:
-    insert_data(page_num, pickled_list, output_file)
+    insert_data(page_num, pickled_list, output_file, run_date)
   except:
     db.close()
     raise

@@ -11,7 +11,7 @@ import logging
 import json
 import sqllite_db_manage as sqlDbm
 import pickle 
-#import boto3
+import to_aws
 
 # instantiate the database connection
 dbm = sqlDbm.DbConnect()
@@ -27,7 +27,7 @@ logging.basicConfig(filename=f'{os.getcwd()}\\url_open.log',
 logger = logging.getLogger()
 logger.info("Screen Scraper App Startup")
 
-
+aws_account_info = f'{os.getcwd()}\\lava_lamp_s3.json'
 
 def generate_run_number():
     ''' Determine and generate the next page number '''
@@ -36,7 +36,7 @@ def generate_run_number():
     sel_query = 'select max(id) from book_list'
     try:
         num = cursor.execute(sel_query).fetchall()[0][0]
-    except:
+    except Exception as err:
         sqlDbm.initialize_db()
     
     if num in [None, 0]:
@@ -66,56 +66,11 @@ def get_url(url):
         print(response.status_code)
         assert response.status_code == 200
         return response
-    except:
+    except Exception as err:
         raise
     
     return None
     
-def process_data0(soup, book_limit=20):
-    '''This function processes each page and determines if the books have already been processed, 
-    and if ht enumber of books per log limit has been reached .  If so, then it will output the
-    results to a csv file.
-    '''
-    
-    book_count = 0
-    book_in_master = False
-    book_dict = {}
-    products = soup.findAll('article', attrs={'class': 'product_pod'})
-    #print(products)
-    for product in products:
-        book_title = product.h3.a.get('title')
-        rating = product.p.get('class')[1]
-        price = product.find('div', attrs={"class": "product_price"}).p.text[1:]
-        in_stock = product.find(
-            'p', attrs={"class": "instock availability"}).text.strip()
-        book_count += 1
-        print(f'{book_count}: {book_title}, {rating}, {price}, {in_stock}')
-        if book_count > book_limit: break
-        if book_title not in master_book_list: 
-            book_dict[book_title] = [book_title, rating, price, in_stock]
-            book_list.append(book_title)
-            #book_list = book_dict.keys()
-            master_book_list.append(book_title)
-            #log(output_file, f'{book_title}, {rating}, {price}, {in_stock}')
-        else:
-            book_in_master = True
-        
-    if len(book_list) == book_limit:
-        save_the_master_list(master_book_list)
-        save_the_book_list(book_list)
-        write_to_log(book_dict)
-    else:
-        # we have less books that need to be written to the & should be stored 
-        pass
-    if book_list:
-        logging.info(
-            f'Page#:{page_num}, books found in master:{book_in_master}, new books added: {len(book_list)}')
-        logging.info(
-            f'Page#:{page_num}, len of book_list:{len(book_list)}, len of master:{len(master_book_list)}')
-        print(f'Titles worked{book_list}')
-    return
-
-
 def process_data(soup, book_limit=20):
     '''This function processes each page and determines if the books have already been processed, 
     and if ht enumber of books per log limit has been reached .  If so, then it will output the
@@ -216,7 +171,7 @@ def load_master_list():
         mList = pickle.loads(pickled_data)
         #logging.debug(f'mlist = {mList}')
         return mList
-    except:
+    except Exception as err:
         #raise
         return []
     
@@ -230,7 +185,7 @@ def get_next_page(soup):
         
         if next_link != None or len(next_link)>1:
             next_page = f'{base_url}catalogue/{next_link}'
-    except:
+    except Exception as err:
         next_page = None
     
     print(f'next link = {next_page}')
@@ -254,14 +209,27 @@ def get_next_url():
 
     try:
         next_url = cursor.execute(sel_query).fetchall()[0][0]
-    except:
+    except Exception as err:
         next_url = f'{base_url}'
     
     logging.info(f'next_url = {next_url}')
     return next_url
 
 def send_to_cloud():
-    pass
+    '''deliver data to the cloud '''
+    run_date = f'{TODAY.year}-{TODAY.month}-{TODAY.day}'
+    sel_query = f'select data_file_name from book_list where job_run_date="{run_date}"'
+    print(sel_query)
+    csv_output_list = cursor.execute(sel_query).fetchall()
+    for csv_file in csv_output_list:   
+        source = csv_file[0].split('roy_mathew')[0]
+        #source_path = 'C:\\CodeRepository\\python\\boto3\\site_scraper'
+        #print(csv_file.split('\\'))
+        file_name = csv_file[0].split('\\')[3:][0]
+        #print(f'data:{csv_file[0]}, source:{source}, file:{file_name}')
+        to_aws.aws_s3_upload(source, '', file_name, aws_account_info)
+    return
+
 
 if __name__ == '__main__':
 
@@ -296,7 +264,7 @@ if __name__ == '__main__':
         # This will be used to ensure that the job will terminate if it's already been run successfully
         if (url_to_find == None) or (len(url_to_find) <= 1):
             all_pages_processed = True
-            print('no more links')
+            logging.info(f'No more links, all pages processed: {all_pages_processed}')
             break
       
         response = get_url(url_to_find)
