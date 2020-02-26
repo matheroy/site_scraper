@@ -52,7 +52,8 @@ def create_tables():
   
   cursor.execute(
       '''CREATE TABLE book_list(id INTEGER PRIMARY KEY NOT NULL,  
-      pickled_data BLOB NOT NULL, data_file_name TEXT NOT NULL)
+      pickled_data BLOB NOT NULL, data_file_name TEXT NOT NULL, 
+      next_url TEXT, job_run_date TEXT NOT NULL)
       ''')
   db.commit()
   
