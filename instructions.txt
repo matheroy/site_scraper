@@ -1,0 +1,14 @@
+1. You can initialize the app by running the initialize_site.bat file which will run the python processes to create the   
+
+2. You may need to modify the initialize_site.bat file to adjust for your directory structure.  For linux based environments, 
+    you will need to convert the file to a shell script.
+
+2a. Additionally for windows environments, the site_scrapper_tasks.xml is an export for the windows scheduler to run 
+    the job via windows scheduler.  You can import the task and then modify accordingly.  For linux based environments, you
+    can utilize cron or other tools to do scheduling.
+
+3. Please create a data directory underneath your main app directory as that will be where the sqlite3 database will be stored
+
+4. The app will automatically create the needed logs and database file as needed on startup.
+
+5. After cloning the github repo, and setting up the appropriate directories, you can run the app by running: python url_open.py 
